@@ -1,19 +1,19 @@
 ---
 name: university-town-bus
-description: 查询深圳大学城无界学城穿梭巴士实时信息。Use when users ask about university town shuttle/bus routes, 全部线路, 发车时间, 到站预测, 车在哪里, vehicle GPS, 站点, or 无界学城穿梭巴士.
+description: 查询深圳大学城无界学城穿梭巴士实时信息。适用于用户询问大学城巴士、无界学城穿梭巴士、全部线路、发车时间、到站预测、车辆位置、车在哪里、站点或车辆 GPS 等问题。
 ---
 
-# University Town Bus
+# 无界学城穿梭巴士 Skill
 
-## Overview
+## 概览
 
-Use this skill to query the Shenzhen University Town / 无界学城穿梭巴士 mobile service and answer route, station, schedule, prediction, and live vehicle-location questions.
+使用这个 skill 查询深圳大学城无界学城穿梭巴士移动端接口，并回答路线、站点、发车时间、到站预测和实时车辆位置相关问题。
 
-The skill is self-contained. Its runtime helper is `scripts/bus.py`, which uses only the Python 3 standard library and requests fresh anonymous access from the public mobile endpoint for each run.
+该 skill 是自包含的。运行时辅助脚本是 `scripts/bus.py`，只依赖 Python 3 标准库；每次运行都会通过公开移动端接口获取新的匿名访问 token，不保存账号、密码、Cookie 或长期凭据。
 
-## Quick Start
+## 快速开始
 
-Run commands from this skill directory:
+在本 skill 目录下运行：
 
 ```bash
 python scripts/bus.py meta
@@ -24,48 +24,48 @@ python scripts/bus.py vehicles "无界学城一号线"
 python scripts/bus.py answer "无界学城一号线现在车在哪里？"
 ```
 
-For machine-readable output, add `--format json` to any subcommand that supports it.
+需要机器可读结果时，在支持的子命令后追加 `--format json`。
 
-## Data Source
+## 数据来源
 
-- Base site: `https://predict.ipubtrans.com/mobile`
-- Default `tenantId`: `2009511491423047680`
-- Default `qrCodeId`: `2011322258011197440`
-- Anonymous token endpoint: `POST /mobile/login/guise`
+- 移动端站点：`https://predict.ipubtrans.com/mobile`
+- 默认 `tenantId`：`2009511491423047680`
+- 默认 `qrCodeId`：`2011322258011197440`
+- 匿名 token 接口：`POST /mobile/login/guise`
 
-Do not hardcode user credentials, cookies, or long-lived tokens. Let `bus.py` call `login/guise` each run.
+不要在 skill 中硬编码用户账号、密码、Cookie 或长期 token。让 `bus.py` 在每次运行时调用 `login/guise` 获取匿名 token。
 
-If a different QR code or tenant is needed, pass `--tenant-id` / `--qr-code-id`, or set:
+如需切换到其他租户或二维码，可传入 `--tenant-id` / `--qr-code-id`，或设置环境变量：
 
 ```bash
 UNIVERSITY_TOWN_BUS_TENANT_ID=...
 UNIVERSITY_TOWN_BUS_QR_CODE_ID=...
 ```
 
-## Workflow
+## 使用流程
 
-1. For broad questions like "有哪些路线" or "全部线路", run `python scripts/bus.py lines`.
-2. For a named route, run `python scripts/bus.py line "<线路名或ID>"`.
-3. For ETA or station-specific questions, run `python scripts/bus.py predict "<线路名或ID>" --station-name "<站点名>"`.
-4. For "车在哪里" or GPS questions, run `python scripts/bus.py vehicles "<线路名或ID>"`; if no vehicle is active, say so directly.
-5. For natural-language user prompts, `python scripts/bus.py answer "<用户问题>"` is usually enough and returns a concise Markdown answer.
+1. 用户问“有哪些路线”“全部线路”“大学城巴士路线”等宽泛问题时，运行 `python scripts/bus.py lines`。
+2. 用户指定某条线路时，运行 `python scripts/bus.py line "<线路名或ID>"`。
+3. 用户问到站时间、还有多久、某站预测时，运行 `python scripts/bus.py predict "<线路名或ID>" --station-name "<站点名>"`。
+4. 用户问“车在哪里”“车辆位置”“GPS”等问题时，运行 `python scripts/bus.py vehicles "<线路名或ID>"`；如果接口没有返回在途车辆，直接说明当前没有车辆 GPS。
+5. 用户用自然语言提问时，优先运行 `python scripts/bus.py answer "<用户问题>"`，该命令会返回适合直接回复用户的中文 Markdown。
 
-## Response Rules
+## 回答规范
 
-- Reply in Chinese unless the user asks otherwise.
-- State the route name, current operating status, selected station, and next-arrival estimate when available.
-- If status is `非营运时间` or `暂未发车`, do not treat it as an error.
-- If GPS/vehicle data is empty, explain that the service currently returns no active vehicle locations.
-- Include the data source briefly, for example: "来源：无界学城穿梭巴士移动端接口。"
-- Mention that bus data is real-time and may change quickly.
+- 默认使用中文回答。
+- 尽量说明线路名、当前运营状态、查询站点和下一班到站预测。
+- 如果接口返回 `非营运时间` 或 `暂未发车`，这是正常业务状态，不要当作错误。
+- 如果车辆 GPS 为空，说明“当前接口没有返回在途车辆 GPS”。
+- 简要标注来源，例如“来源：无界学城穿梭巴士移动端接口。”
+- 提醒用户实时数据可能快速变化。
 
-## Interface Notes
+## 接口说明
 
-The helper wraps these verified endpoints:
+辅助脚本封装了以下已验证接口：
 
-- `POST /mobile/getQrName`: route system name and default map center.
-- `POST /mobile/line/list`: all routes near the default or provided coordinates.
-- `POST /mobile/line/info`: route stations, track, notice, and schedule text.
-- `GET /mobile/predict/first/station/line?keys=...`: line-level prediction/status.
-- `GET /mobile/predict/more/station/line`: station-specific prediction.
-- `POST /mobile/predict/line/vehList`: live vehicle GPS list.
+- `POST /mobile/getQrName`：获取二维码名称和默认地图中心经纬度。
+- `POST /mobile/line/list`：查询全部线路。
+- `POST /mobile/line/info`：查询线路站点、轨迹、公告和发车时间。
+- `GET /mobile/predict/first/station/line?keys=...`：查询线路级预测和运营状态。
+- `GET /mobile/predict/more/station/line`：查询某个站点的到站预测。
+- `POST /mobile/predict/line/vehList`：查询线路车辆 GPS。

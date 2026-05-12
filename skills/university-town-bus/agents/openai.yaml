@@ -1,4 +1,4 @@
 interface:
-  display_name: "University Town Bus"
-  short_description: "Query university town shuttle routes and live buses"
-  default_prompt: "Use $university-town-bus to check the current university town shuttle route status."
+  display_name: "无界学城巴士"
+  short_description: "查询大学城穿梭巴士路线、到站预测和车辆位置"
+  default_prompt: "使用 $university-town-bus 查询无界学城穿梭巴士当前线路和车辆状态。"
