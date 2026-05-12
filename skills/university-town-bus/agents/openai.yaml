@@ -1,0 +1,4 @@
+interface:
+  display_name: "University Town Bus"
+  short_description: "Query university town shuttle routes and live buses"
+  default_prompt: "Use $university-town-bus to check the current university town shuttle route status."
