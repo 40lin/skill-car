@@ -25,6 +25,8 @@ DEFAULT_BASE_URL = "https://predict.ipubtrans.com"
 DEFAULT_TENANT_ID = "2009511491423047680"
 DEFAULT_QR_CODE_ID = "2011322258011197440"
 DEFAULT_USER_AGENT = "skill-car-university-town-bus/0.1"
+DEFAULT_VIEW_PATH = "/mobile"
+DEFAULT_VIEW_HASH = "#/pages/home/index"
 
 STATUS_TEXT = {
     1: "运营中",
@@ -137,6 +139,10 @@ class BusClient:
             query = urllib.parse.urlencode(params, doseq=True)
             url = url + "?" + query
         return url
+
+    def view_url(self):
+        query = urllib.parse.urlencode({"tenantId": self.tenant_id, "qrCodeId": self.qr_code_id})
+        return f"{self.base_url}{DEFAULT_VIEW_PATH}?{query}{DEFAULT_VIEW_HASH}"
 
     def headers(self, content_type=None, include_token=True):
         headers = {
@@ -331,6 +337,7 @@ def build_lines_payload(client, lng=None, lat=None):
     lines = attach_line_predictions(client, client.lines(lng=lng, lat=lat))
     return {
         "meta": meta,
+        "view_url": client.view_url(),
         "generated_at": dt.datetime.now().isoformat(timespec="seconds"),
         "count": len(lines),
         "lines": lines,
@@ -362,6 +369,7 @@ def build_line_payload(client, line_query, station_name=None, selected_line=None
 
     vehicles = client.vehicles(line_id)
     return {
+        "view_url": client.view_url(),
         "generated_at": dt.datetime.now().isoformat(timespec="seconds"),
         "line": selected_line,
         "detail": detail,
@@ -388,6 +396,7 @@ def build_predict_payload(client, line_query, station_name=None, selected_line=N
         selected_station = stations[0]
     prediction = client.station_prediction(line_id, selected_station.get("stationId")) if selected_station else None
     return {
+        "view_url": client.view_url(),
         "generated_at": dt.datetime.now().isoformat(timespec="seconds"),
         "line": selected_line,
         "selected_station": selected_station,
@@ -401,10 +410,24 @@ def build_vehicles_payload(client, line_query, selected_line=None):
         selected_line = find_line(lines, line_query)
     line_id = selected_line.get("id") or selected_line.get("lineId")
     return {
+        "view_url": client.view_url(),
         "generated_at": dt.datetime.now().isoformat(timespec="seconds"),
         "line": selected_line,
         "vehicles": client.vehicles(line_id),
     }
+
+
+def footer_lines(payload, realtime=True):
+    view_url = payload.get("view_url") or f"{DEFAULT_BASE_URL}{DEFAULT_VIEW_PATH}?tenantId={DEFAULT_TENANT_ID}&qrCodeId={DEFAULT_QR_CODE_ID}{DEFAULT_VIEW_HASH}"
+    lines = [
+        f"更新时间：{payload.get('generated_at')}",
+        f"查看更清楚的信息：{view_url}",
+    ]
+    source = "来源：无界学城穿梭巴士移动端接口"
+    if realtime:
+        source += "，实时数据可能很快变化"
+    lines.append(source + "。")
+    return lines
 
 
 def format_prediction(prediction, stations=None):
@@ -457,7 +480,7 @@ def format_lines_markdown(payload):
             f"{line.get('beginStationName')} - {line.get('endStationName')}，"
             f"候车站 {line.get('nearbyStationName') or '--'}{distance_text}，当前 {eta or status}"
         )
-    output.extend(["", f"更新时间：{payload.get('generated_at')}", "来源：无界学城穿梭巴士移动端接口。"])
+    output.extend(["", *footer_lines(payload)])
     return "\n".join(output)
 
 
@@ -491,7 +514,7 @@ def format_line_markdown(payload):
             output.append("- " + format_vehicle(vehicle))
     else:
         output.append("- 当前接口没有返回在途车辆 GPS。")
-    output.extend(["", f"更新时间：{payload.get('generated_at')}", "来源：无界学城穿梭巴士移动端接口，实时数据可能很快变化。"])
+    output.extend(["", *footer_lines(payload)])
     return "\n".join(output)
 
 
@@ -505,8 +528,7 @@ def format_predict_markdown(payload):
         f"站点：{station.get('stationName') or station.get('stationId') or '--'}",
         f"状态：{format_prediction(prediction)}",
         "",
-        f"更新时间：{payload.get('generated_at')}",
-        "来源：无界学城穿梭巴士移动端接口。",
+        *footer_lines(payload),
     ]
     return "\n".join(output)
 
@@ -537,7 +559,7 @@ def format_vehicles_markdown(payload):
     else:
         for vehicle in vehicles:
             output.append("- " + format_vehicle(vehicle))
-    output.extend(["", f"更新时间：{payload.get('generated_at')}", "来源：无界学城穿梭巴士移动端接口。"])
+    output.extend(["", *footer_lines(payload)])
     return "\n".join(output)
 
 
@@ -644,6 +666,7 @@ def main(argv=None):
         if args.command == "meta":
             payload = {
                 "meta": client.meta(),
+                "view_url": client.view_url(),
                 "generated_at": dt.datetime.now().isoformat(timespec="seconds"),
             }
             if args.format == "json":
@@ -654,6 +677,8 @@ def main(argv=None):
                 print("")
                 print(f"- 默认经度：{meta.get('defaultLng')}")
                 print(f"- 默认纬度：{meta.get('defaultLat')}")
+                print("")
+                print(f"查看更清楚的信息：{payload['view_url']}")
         elif args.command == "lines":
             payload = build_lines_payload(client, lng=args.lng, lat=args.lat)
             print(json.dumps(payload, ensure_ascii=False, indent=2) if args.format == "json" else format_lines_markdown(payload))
